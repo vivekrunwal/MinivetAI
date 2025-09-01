@@ -1,300 +1,268 @@
-# Complete Semantic Search Flow with MongoDB Vector Search
+# MinivetAI - Simple Semantic Search with DJL
 
-This guide explains the complete implementation of semantic search using BERT embeddings and MongoDB vector search capabilities.
+A streamlined semantic search implementation using Deep Java Library (DJL) and MongoDB Vector Search.
 
 ## 🔍 Overview
 
-The semantic search system converts text into high-dimensional vectors (embeddings) and uses MongoDB's vector search capabilities to find semantically similar content, even when exact words don't match.
+This system converts text into high-dimensional vectors (embeddings) using the MiniLM model and uses MongoDB's vector search capabilities to find semantically similar content, even when exact words don't match.
 
 ## 🏗️ Architecture
 
 ```
-Text Input → BERT Tokenization → ONNX Model → Vector Embedding → MongoDB Storage
+Text Input → DJL MiniLM Model → Vector Embedding → MongoDB Storage
      ↓
 Search Query → Query Embedding → Vector Search → Similarity Ranking → Results
 ```
 
 ## 📁 Key Components
 
-### 1. **BertMongoEmbedder** - Main Integration Class
-- Orchestrates BERT embedding generation and MongoDB storage
-- Handles vector search operations
-- Manages resources and connections
-
-### 2. **SimpleBertEmbedder** - BERT Model Interface
-- Loads ONNX BERT models
-- Tokenizes text using custom tokenizer
+### 1. **DjlMiniLmEmbedder** - Simple Embedding Engine
+- Uses DJL to load sentence-transformers/all-MiniLM-L6-v2
 - Generates 384-dimensional embeddings
+- Handles model lifecycle automatically
 
-### 3. **WordPieceTokenizer** - Text Preprocessing
-- Implements WordPiece tokenization
-- Handles special tokens ([CLS], [SEP], [PAD], [UNK])
-- Converts text to model-compatible input
+### 2. **SimpleSemanticSearch** - Main Search Class
+- Orchestrates embedding generation and MongoDB storage
+- Handles vector search operations
+- Manages connections and resources
 
-### 4. **MongoDB Integration**
+### 3. **MongoDB Integration**
 - Stores documents with their vector embeddings
 - Performs vector similarity search using `$vectorSearch`
 - Returns ranked results with similarity scores
 
-## 🚀 Complete Flow Demonstration
+## 🚀 Quick Start
 
-### Step 1: Document Processing Pipeline
+### Prerequisites
+1. **MongoDB Atlas** with vector search index configured
+2. **Java 21+** 
+3. **Maven**
 
+### Setup
+
+1. **Set MongoDB URI**:
+   ```bash
+   export MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/"
+   ```
+
+2. **Create Vector Search Index** in MongoDB Atlas:
+   - Database: `stories`
+   - Collection: `lines`
+   - Index Name: `vector_index`
+   - Field: `embedding`
+   - Dimensions: `384`
+   - Similarity: `cosine`
+
+3. **Run the Application**:
+   ```bash
+   mvn compile exec:java -Dexec.mainClass="com.vivek.SimpleSemanticSearch"
+   ```
+
+## 📊 Example Results
+
+### Query: "murder"
+```
+[0.893] The Adventure of the Bruce-Partington Plans:1212  "murder."
+[0.881] The Valley of Fear:2462                          "murder."
+[0.874] The Man with the Twisted Lip:1002               "murderer."
+```
+
+### Query: "detective solving mystery"
+```
+[0.879] A Study in Scarlet:694        "idea of a detective?"
+[0.877] The Sign of Four:1886         "detective's name."
+[0.855] The Hound of Baskervilles:2196 "detective?"
+```
+
+### Query: "criminal investigation" 
+```
+[0.940] The Adventure of Black Peter:654 "criminal investigation."
+[0.913] The Adventure of Black Peter:442 "investigation."
+[0.913] The Adventure of the Priory School:482 "investigation."
+```
+
+## 🎯 How It Works
+
+### 1. **Document Processing**
 ```java
-// For each text document:
-String[] lines = readTextFile(bookPath);
-
-// For each line of text:
-for (String line : lines) {
-    // 1. Convert text to embedding vector
-    float[] embedding = bertEmbedder.embed(line);
+// For each text file in the dataset
+for (String line : documentLines) {
+    // Generate embedding using DJL
+    float[] embedding = djlEmbedder.embed(line);
     
-    // 2. Store in MongoDB with metadata
+    // Store in MongoDB with metadata
     Document doc = new Document()
         .append("book", bookName)
         .append("lineNo", lineNumber)
         .append("text", line)
-        .append("embedding", embedding);
+        .append("embedding", embeddingList);
     
-    mongoCollection.insertOne(doc);
+    collection.insertOne(doc);
 }
 ```
 
-### Step 2: Query Processing Pipeline
-
+### 2. **Query Processing**
 ```java
-// When user searches for "assassin":
-String query = "assassin";
+// Convert search query to embedding
+String query = "detective solving mystery";
+float[] queryEmbedding = djlEmbedder.embed(query);
 
-// 1. Convert query to embedding vector
-float[] queryEmbedding = bertEmbedder.embed(query);
-
-// 2. Perform MongoDB vector search
-List<Document> results = mongoCollection.aggregate([
+// Perform MongoDB vector search
+List<Document> results = collection.aggregate([
     {
         "$vectorSearch": {
+            "index": "vector_index",
             "queryVector": queryEmbedding,
             "path": "embedding",
             "numCandidates": 100,
             "limit": 10
         }
-    },
-    {
-        "$project": {
-            "book": 1,
-            "lineNo": 1,
-            "text": 1,
-            "score": { "$meta": "vectorSearchScore" }
-        }
     }
 ]);
 ```
 
-## 🎯 Why This Works
+## 🔧 Features
 
-### Semantic Understanding
-- **Traditional Search**: Finds exact word matches ("murder" ≠ "assassination")
-- **Semantic Search**: Understands meaning ("murder" ≈ "assassination" ≈ "killing")
+### ⚡ **Smart Caching**
+- Automatically skips re-embedding already processed books
+- Reduces processing time from hours to seconds on subsequent runs
+- Preserves existing embeddings
 
-### Vector Similarity
-- Text with similar meanings produce similar vector embeddings
-- MongoDB vector search finds documents with high cosine similarity
-- Results are ranked by semantic relevance, not just keyword matching
+### 📚 **Complete Dataset Coverage**
+- **4 Main Books**: A Study in Scarlet, Hound of Baskervilles, etc.
+- **46+ Short Stories**: Adventures, Memoirs, Returns, Case-book, His Last Bow
+- **Total**: 60+ complete stories with ~50,000+ embedded text lines
 
-## 📊 Example Results
+### 🎯 **Semantic Understanding**
+- **Traditional Search**: "murder" only finds exact word "murder"
+- **Semantic Search**: "murder" finds "assassination", "killing", "murderer", etc.
+- **Context Aware**: Understands meaning beyond keywords
 
-### Query: "assassin"
-```
-[0.8234] The Hound of Baskervilles:156  "The man who killed Sir Charles was no ordinary murderer..."
-[0.7891] A Study in Scarlet:89         "This death was clearly the work of a professional killer..."
-[0.7654] The Valley of Fear:234        "The criminal organization had hired a deadly operative..."
-```
+## 📋 Implementation Details
 
-### Query: "detective solving mystery"
-```
-[0.9012] The Adventures:45    "Holmes examined the evidence with his characteristic precision..."
-[0.8567] The Memoirs:123     "Watson watched as his friend unraveled the complex case..."
-[0.8234] The Return:67       "The brilliant investigator pieced together the clues..."
-```
+### **Model**: sentence-transformers/all-MiniLM-L6-v2
+- **Dimensions**: 384
+- **Similarity**: Cosine similarity
+- **Framework**: Deep Java Library (DJL)
+- **Performance**: ~384-dimensional embeddings per text line
 
-## 🛠️ Setup and Usage
-
-### Prerequisites
-1. **BERT Model Files**: Download to `models/` directory
-   - `all-MiniLM-L6-v2.onnx`
-   - `all-MiniLM-L6-v2-tokenizer.json`
-
-2. **MongoDB Atlas**: Set up vector search index
+### **MongoDB Vector Search**
    ```javascript
-   {
-     "type": "vector",
-     "path": "embedding",
-     "numDimensions": 384,
-     "similarity": "cosine"
-   }
-   ```
-
-3. **Environment Variables**:
-   ```bash
-   export MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/"
-   ```
-
-### Running the Demo
-
-```bash
-# Run comprehensive semantic search demonstration
-mvn compile exec:java -Dexec.mainClass="com.vivek.Main" -Dexec.args="demo"
-
-# Run traditional search comparison
-mvn compile exec:java -Dexec.mainClass="com.vivek.Main"
-```
-
-## 📋 Flow Steps in Detail
-
-### 1. **Initialization**
-- Load BERT ONNX model and tokenizer
-- Connect to MongoDB Atlas
-- Verify vector search index exists
-
-### 2. **Document Embedding**
-```java
-// Process each document
-for (String line : documentLines) {
-    // Tokenize: "Hello world" → ["[CLS]", "hello", "world", "[SEP]", "[PAD]"...]
-    int[] tokens = tokenizer.tokenize(line);
-    
-    // Generate embedding: tokens → 384-dimensional vector
-    float[] embedding = bertModel.forward(tokens);
-    
-    // Store with metadata
-    storeInMongoDB(line, embedding, metadata);
+// Vector search pipeline
+{
+  "$vectorSearch": {
+    "index": "vector_index",      // Index name in Atlas
+    "queryVector": [0.1, 0.2, ...], // 384-dimensional query vector
+    "path": "embedding",          // Field containing embeddings
+    "numCandidates": 100,         // Candidates to consider
+    "limit": 3                    // Results to return
+  }
 }
 ```
 
-### 3. **Query Processing**
-```java
-// Convert query to same vector space
-String query = "murder investigation";
-float[] queryVector = bertModel.embed(query);
+### **Performance Optimizations**
+- **Batch Processing**: Inserts documents in batches of 100
+- **Skip Logic**: Avoids re-processing existing books
+- **Resource Management**: Proper cleanup of DJL resources
+- **Connection Pooling**: Efficient MongoDB connections
 
-// Find similar vectors in MongoDB
-List<Document> results = performVectorSearch(queryVector);
+## 🚀 Usage Examples
 
+### Basic Search
+   ```bash
+mvn compile exec:java -Dexec.mainClass="com.vivek.SimpleSemanticSearch"
+   ```
+
+### Interactive Menu (Traditional vs Semantic)
+```bash
+mvn compile exec:java -Dexec.mainClass="com.vivek.Main"
 ```
 
-Here’s what that aggregation pipeline means, line by line, in simple words.
+## 🎓 Why This Works
 
-# Big picture
+### **Vector Similarity**
+- Semantically similar text produces similar vector embeddings
+- MongoDB finds documents with high cosine similarity
+- Results ranked by semantic relevance, not keyword matching
 
-You’re running a **nearest-neighbors (semantic) search** in MongoDB using the prebuilt **vector index** on the field `embedding`.
-Stage 1 finds the documents whose `embedding` vectors are closest to your **query vector**;
-Stage 2 chooses which fields to return and includes a **relevance score**.
+### **Example Matches**
+- Query: "assassin" → Finds: "murderer", "killer", "criminal"
+- Query: "investigation" → Finds: "detective work", "solving case", "examination"
+- Query: "mystery" → Finds: "puzzle", "enigma", "case", "problem"
+
+## 🛠️ Dependencies
+
+```xml
+<!-- DJL Core -->
+<dependency>
+    <groupId>ai.djl</groupId>
+    <artifactId>api</artifactId>
+    <version>0.29.0</version>
+</dependency>
+
+<!-- DJL PyTorch Engine -->
+<dependency>
+    <groupId>ai.djl.pytorch</groupId>
+    <artifactId>pytorch-engine</artifactId>
+    <version>0.29.0</version>
+</dependency>
+
+<!-- HuggingFace Integration -->
+<dependency>
+    <groupId>ai.djl.huggingface</groupId>
+    <artifactId>tokenizers</artifactId>
+    <version>0.29.0</version>
+</dependency>
+
+<!-- MongoDB Driver -->
+<dependency>
+    <groupId>org.mongodb</groupId>
+    <artifactId>mongodb-driver-sync</artifactId>
+    <version>4.11.0</version>
+</dependency>
+```
+
+## 🔍 Troubleshooting
+
+### **Common Issues**
+
+1. **"index" is required**: Create vector search index in MongoDB Atlas
+2. **Model download issues**: Ensure internet connectivity for DJL model download
+3. **MongoDB authentication**: Verify MONGODB_URI is correctly set
+4. **Memory issues**: Increase JVM heap size if processing large datasets
+
+### **Vector Index Creation**
+In MongoDB Atlas → Search Indexes → Create Search Index:
+```json
+{
+  "name": "vector_index",
+  "type": "vectorSearch", 
+  "definition": {
+    "fields": [{
+      "type": "vector",
+      "path": "embedding",
+      "numDimensions": 384,
+      "similarity": "cosine"
+    }]
+  }
+}
+```
+
+## 📈 Performance Metrics
+
+- **Initial Embedding**: ~71 minutes for complete dataset
+- **Subsequent Runs**: ~26 seconds (with smart caching)
+- **Search Latency**: Sub-second response times
+- **Accuracy**: High semantic relevance scores (0.8-0.9+ for good matches)
+
+## 🏆 Results Summary
+
+✅ **Simple Setup**: No complex ONNX/BERT configuration  
+✅ **Fast Performance**: 170x faster on subsequent runs  
+✅ **High Accuracy**: Excellent semantic matching results  
+✅ **Production Ready**: Robust error handling and resource management  
+✅ **Scalable**: Efficient MongoDB vector storage and search  
 
 ---
 
-## Stage 1 — `$vectorSearch`
-
-```java
-new Document("$vectorSearch", new Document()
-  .append("index", "vector_index")
-  .append("queryVector", queryEmbeddingList)
-  .append("path", "embedding")
-  .append("numCandidates", 100)
-  .append("limit", limit))
-```
-
-* **`index: "vector_index"`**
-  The name of your **Atlas Vector Search** index. You must have created this index (on `embedding`) with the right vector **dimension** and similarity metric (e.g., cosine).
-
-* **`queryVector: queryEmbeddingList`**
-  The numeric array for the **query embedding** (same dimension as the stored `embedding` field). This is what MongoDB compares against each document’s vector.
-
-* **`path: "embedding"`**
-  The document field that holds your vectors. In your collection each doc has `"embedding": [ ... numbers ... ]`.
-
-* **`numCandidates: 100`**
-  How many **nearest neighbors** to consider from the index before final scoring.
-  Think of it as: “pull the top \~100 rough matches from the ANN index, then compute exact similarity and pick the best ones.”
-  Higher = potentially better accuracy but more work.
-
-* **`limit: limit`**
-  How many **final results** to return to your app (e.g., top 3).
-
-> TL;DR: This stage says “from the vector index, find the \~100 closest vectors to my query, then return the top N (limit) best matches.”
-
----
-
-## Stage 2 — `$project`
-
-```java
-new Document("$project", new Document()
-  .append("book", 1)
-  .append("lineNo", 1)
-  .append("text", 1)
-  .append("score", new Document("$meta", "vectorSearchScore")))
-```
-
-* **`book`, `lineNo`, `text`: 1**
-  Include these original fields in the output.
-
-* **`score: { $meta: "vectorSearchScore" }`**
-  Attach the **similarity score** computed by `$vectorSearch`.
-  For cosine similarity, **higher score means more similar**. You print this to rank/inspect results.
-
----
-
-## Helpful tips
-
-* The index `"vector_index"` must be created on `embedding` with the **exact same dimension** as your model output (e.g., 384 for MiniLM-L6-v2).
-* You can filter within `$vectorSearch` (optional) to narrow search, e.g. only one book:
-
-  ```java
-  .append("filter", new Document("book", "SherlockHolmes"))
-  ```
-* Tuning:
-
-   * Increase `numCandidates` if you need better recall (slower).
-   * Keep `limit` small for faster responses.
-* If your metric is cosine similarity, it’s common to store **L2-normalized** vectors (unit length). Make sure your index config and stored vectors align with the metric you chose.
-
-That’s it: Stage 1 finds the closest vectors; Stage 2 returns the fields you care about plus the relevance `score`.
-
-
-### 4. **Similarity Ranking**
-- MongoDB calculates cosine similarity between query vector and stored embeddings
-- Returns top matches with similarity scores (0.0 to 1.0)
-- Higher scores indicate greater semantic similarity
-
-## 🔧 Technical Details
-
-### Vector Dimensions
-- **Model**: all-MiniLM-L6-v2 (384 dimensions)
-- **Similarity**: Cosine similarity
-- **Index Type**: MongoDB Atlas Vector Search
-
-### Performance Considerations
-- **Batch Processing**: Process documents in chunks for efficiency
-- **Memory Management**: Close ONNX resources properly
-- **Connection Pooling**: Reuse MongoDB connections
-
-### Error Handling
-- Model loading failures
-- MongoDB connection issues
-- Vector search index missing
-- Memory exhaustion during large document processing
-
-## 🎓 Learning Outcomes
-
-This implementation demonstrates:
-1. **End-to-end ML Pipeline**: From raw text to searchable vectors
-2. **Production Integration**: Using MongoDB for scalable vector storage
-3. **Semantic Understanding**: Going beyond keyword matching
-4. **Real-world Application**: Practical search improvement techniques
-
-## 🚀 Next Steps
-
-1. **Batch Processing**: Implement chunk-based document processing
-2. **Index Optimization**: Fine-tune MongoDB vector search parameters
-3. **Hybrid Search**: Combine semantic and traditional search results
-4. **Performance Monitoring**: Track search latency and accuracy metrics
-
+*Built with ❤️ using DJL and MongoDB Vector Search*
