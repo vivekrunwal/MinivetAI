@@ -248,13 +248,6 @@ In MongoDB Atlas → Search Indexes → Create Search Index:
 }
 ```
 
-## 📈 Performance Metrics
-
-- **Initial Embedding**: ~71 minutes for complete dataset
-- **Subsequent Runs**: ~26 seconds (with smart caching)
-- **Search Latency**: Sub-second response times
-- **Accuracy**: High semantic relevance scores (0.8-0.9+ for good matches)
-
 ## 🏆 Results Summary
 
 ✅ **Simple Setup**: No complex ONNX/BERT configuration  
@@ -264,5 +257,3 @@ In MongoDB Atlas → Search Indexes → Create Search Index:
 ✅ **Scalable**: Efficient MongoDB vector storage and search  
 
 ---
-
-*Built with ❤️ using DJL and MongoDB Vector Search*
