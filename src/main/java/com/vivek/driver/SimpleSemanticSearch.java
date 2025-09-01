@@ -1,9 +1,10 @@
-package com.vivek;
+package com.vivek.driver;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.vivek.core.DjlMiniLmEmbedder;
 import org.bson.Document;
 
 import java.nio.file.Files;

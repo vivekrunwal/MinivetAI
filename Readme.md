@@ -55,7 +55,7 @@ Search Query → Query Embedding → Vector Search → Similarity Ranking → Re
 
 3. **Run the Application**:
    ```bash
-   mvn compile exec:java -Dexec.mainClass="com.vivek.SimpleSemanticSearch"
+   mvn compile exec:java -Dexec.mainClass="com.vivek.driver.SimpleSemanticSearch"
    ```
 
 ## 📊 Example Results
@@ -170,12 +170,12 @@ List<Document> results = collection.aggregate([
 
 ### Basic Search
    ```bash
-mvn compile exec:java -Dexec.mainClass="com.vivek.SimpleSemanticSearch"
+mvn compile exec:java -Dexec.mainClass="com.vivek.driver.SimpleSemanticSearch"
    ```
 
 ### Interactive Menu (Traditional vs Semantic)
 ```bash
-mvn compile exec:java -Dexec.mainClass="com.vivek.Main"
+mvn compile exec:java -Dexec.mainClass="com.vivek.driver.Main"
 ```
 
 ## 🎓 Why This Works

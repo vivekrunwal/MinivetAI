@@ -1,7 +1,6 @@
-package com.vivek;
+package com.vivek.core;
 
 import ai.djl.Application;
-import ai.djl.Model;
 import ai.djl.inference.Predictor;
 import ai.djl.repository.zoo.Criteria;
 import ai.djl.repository.zoo.ZooModel;

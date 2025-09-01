@@ -1,4 +1,7 @@
-package com.vivek;
+package com.vivek.driver;
+
+import com.vivek.core.SearchEngine;
+import com.vivek.core.InvertedIndex;
 
 /**
  * Main entry point for the simplified semantic search system

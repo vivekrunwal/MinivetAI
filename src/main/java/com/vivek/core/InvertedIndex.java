@@ -1,4 +1,6 @@
-package com.vivek;
+package com.vivek.core;
+
+import com.vivek.constants.Constants;
 
 import java.io.IOException;
 import java.nio.file.Files;
